@@ -43,7 +43,7 @@ weight_decay_coeff = 5e-4 # weight decay coefficient for training netE.
 alpha = 1 # coefficient for GAN_loss tern when training netE
 gamma = 0.5 # coefficient for the mutual information
 eta = 0.25 # coefficient for the reconstruction err when training E
-default_device = 'cuda:0'
+default_device = 'cuda:5'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', default='cifar10', help='cifar10 | lsun | mnist |imagenet | folder | lfw | fake')
@@ -168,7 +168,7 @@ if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
 print(netG)
 
-netD = Discriminator(ngpu, ndf, nc, np).to(device)
+netD = Discriminator(ngpu, nz, ndf, nc, np).to(device)
 netD.apply(weights_init)
 if opt.netD != '':
     netD.load_state_dict(torch.load(opt.netD))
@@ -209,30 +209,30 @@ for epoch in range(nepochs):
         pixg_noise = torch.randn(real.size(), device=device)
         
         label_real = torch.full((batch_size,), 0, device=device, dtype=torch.int64)
-        output = netD(real + sigma * pixd_noise)[0] # unnormalized
-        # errD = torch.mean((output - a) ** 2)
+        output = netD(noise)[0]
+        errD = torch.mean((output - a) ** 2)
+        # output = netD(real + sigma * pixd_noise)[0] # unnormalized
         D_x = torch.sigmoid(output).mean().item()
         label_fake = torch.full((batch_size,), 1, device=device, dtype=torch.int64)
-        output = netD(netG(noise) + sigma * pixg_noise)[0]
-        # errD += torch.mean((output - b) ** 2)
+        output = netD(latent_real)[0]
+        errD += torch.mean((output - b) ** 2)
+        # output = netD(netG(noise) + sigma * pixg_noise)[0]
         D_Gz = torch.sigmoid(output).mean().item()
 
         errG = torch.mean((output - c) ** 2) + 0.0
-
-        dom_n = torch.bernoulli(.5)
-        dom_rf = torch.bernoulli(.5)
-        if dom_n == 0:
             
         k = torch.randint(np, (1,), dtype=torch.int64).item()
+
         noise_mask = torch.zeros((batch_size, nz, 1, 1), device=device)
         real_mask = torch.ones((batch_size, nz, 1, 1), device=device)
+        
         index = torch.tensor(range(k * width, (k + 1) * width), dtype=torch.int64, device=device)
         noise_mask = noise_mask.index_fill_(1, index, 1)
         real_mask = real_mask.index_fill_(1, index, 0)
         latent = torch.mul(latent_real, real_mask) + torch.mul(noise, noise_mask)
         fake = netG(latent)
         label = torch.full((batch_size,), k, device=device, dtype=torch.int64)
-        output = netD(fake)[1]
+        output = netD(latent)[1]
         CE_regularizer = gamma * criterion(output, label)
         errD += CE_regularizer
         errG -= CE_regularizer
@@ -265,7 +265,7 @@ for epoch in range(nepochs):
             latent = torch.mul(netE(real), real_mask) + torch.mul(noise, noise_mask)
             fake = netG(latent)
             label = torch.full((batch_size,), k, device=device, dtype=torch.int64)
-            output = netD(fake)[1]
+            output = netD(latent)[1]
             GAN_loss += gamma * criterion(output, label)
             errE = alpha * GAN_loss
             err_reconstruct = criterion_reconstruct(real, netG(netE(real)))
