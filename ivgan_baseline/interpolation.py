@@ -64,6 +64,9 @@ try:
 except OSError:
     pass
 
+if not os.path.exists(opt.outp):
+    os.mkdir(opt.outp)
+
 if opt.manualSeed is None:
     opt.manualSeed = random.randint(1, 10000)
 print("Random Seed: ", opt.manualSeed)
