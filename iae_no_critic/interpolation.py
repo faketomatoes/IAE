@@ -195,8 +195,8 @@ fid_record = []
 
 
 for epoch in range(nepochs):
-    if epoch in itfr_sigma:
-        sigma = itfr_sigma[epoch]
+    # if epoch in itfr_sigma:
+    #     sigma = itfr_sigma[epoch]
     for i, data in enumerate(dataloader, 0):
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
