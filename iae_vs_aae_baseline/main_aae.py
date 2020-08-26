@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
 from torch.autograd import Variable
-from logger import Logger
+# from logger import Logger
 
 
 # MNIST Dataset 
@@ -78,7 +78,7 @@ P = P_net(784,1000,z_red_dims).cuda()
 D_gauss = D_net_gauss(500,z_red_dims).cuda()
 
 # Set the logger
-logger = Logger('./logs/z_120_fixed_LR_2')
+# logger = Logger('./logs/z_120_fixed_LR_2')
 
 # Set learning rates
 gen_lr = 0.0001
@@ -146,34 +146,34 @@ for step in range(total_step):
 
     
     if (step+1) % 100 == 0:
-        # print ('Step [%d/%d], Loss: %.4f, Acc: %.2f' 
-        #        %(step+1, total_step, loss.data[0], accuracy.data[0]))
+        print ('Step [%d/%d], Loss: %.4f, Acc: %.2f' 
+               %(step+1, total_step, loss.data[0], accuracy.data[0]))
 
-        #============ TensorBoard logging ============#
-        # (1) Log the scalar values
-        info = {
-            'recon_loss': recon_loss.data[0],
-            'discriminator_loss': D_loss.data[0],
-            'generator_loss': G_loss.data[0]
-        }
+    #     #============ TensorBoard logging ============#
+    #     # (1) Log the scalar values
+    #     info = {
+    #         'recon_loss': recon_loss.data[0],
+    #         'discriminator_loss': D_loss.data[0],
+    #         'generator_loss': G_loss.data[0]
+    #     }
 
-        for tag, value in info.items():
-            logger.scalar_summary(tag, value, step+1)
+    #     for tag, value in info.items():
+    #         logger.scalar_summary(tag, value, step+1)
 
-        # (2) Log values and gradients of the parameters (histogram)
-        for net,name in zip([P,Q,D_gauss],['P_','Q_','D_']): 
-            for tag, value in net.named_parameters():
-                tag = name+tag.replace('.', '/')
-                logger.histo_summary(tag, to_np(value), step+1)
-                logger.histo_summary(tag+'/grad', to_np(value.grad), step+1)
+    #     # (2) Log values and gradients of the parameters (histogram)
+    #     for net,name in zip([P,Q,D_gauss],['P_','Q_','D_']): 
+    #         for tag, value in net.named_parameters():
+    #             tag = name+tag.replace('.', '/')
+    #             logger.histo_summary(tag, to_np(value), step+1)
+    #             logger.histo_summary(tag+'/grad', to_np(value.grad), step+1)
 
-        # (3) Log the images
-        info = {
-            'images': to_np(images.view(-1, 28, 28)[:10])
-        }
+    #     # (3) Log the images
+    #     info = {
+    #         'images': to_np(images.view(-1, 28, 28)[:10])
+    #     }
 
-        for tag, images in info.items():
-            logger.image_summary(tag, images, step+1)
+    #     for tag, images in info.items():
+    #         logger.image_summary(tag, images, step+1)
 
 #save the Encoder
 torch.save(Q.state_dict(),'Q_encoder_weights.pt')
