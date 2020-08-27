@@ -1,6 +1,8 @@
 import torch
+import os
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.utils as vutils
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
 from torch.autograd import Variable
@@ -18,14 +20,19 @@ data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                           batch_size=100, 
                                           shuffle=True)
 
+device = torch.device("cuda:5")
+
 def to_np(x):
     return x.data.cpu().numpy()
 
 def to_var(x):
     if torch.cuda.is_available():
-        x = x.cuda()
+        x = x.to(device)
     return Variable(x)    
 
+outp = "./fake_imgs"
+if not os.path.exists(outp):
+    os.mkdir(outp)
 
 #Encoder
 class Q_net(nn.Module):  
@@ -73,9 +80,9 @@ class D_net_gauss(nn.Module):
 
 EPS = 1e-15
 z_red_dims = 120
-Q = Q_net(784,1000,z_red_dims).cuda()
-P = P_net(784,1000,z_red_dims).cuda()
-D_gauss = D_net_gauss(500,z_red_dims).cuda()
+Q = Q_net(784,1000,z_red_dims).to(device)
+P = P_net(784,1000,z_red_dims).to(device)
+D_gauss = D_net_gauss(500,z_red_dims).to(device)
 
 # Set the logger
 # logger = Logger('./logs/z_120_fixed_LR_2')
@@ -95,6 +102,8 @@ data_iter = iter(data_loader)
 iter_per_epoch = len(data_loader)
 total_step = 50000
 
+fixed_noise = torch.randn(100, z_red_dims, 1, 1, device=device)
+
 # Start training
 for step in range(total_step):
 
@@ -104,7 +113,9 @@ for step in range(total_step):
 
     # Fetch the images and labels and convert them to variables
     images, labels = next(data_iter)
+    # print("the size of images per batch {}".format(images.shape))
     images, labels = to_var(images.view(images.size(0), -1)), to_var(labels)
+    # print("the size of vectors per batch {}".format(images.shape))
 
     #reconstruction loss
     P.zero_grad()
@@ -123,7 +134,7 @@ for step in range(total_step):
     ## true prior is random normal (randn)
     ## this is constraining the Z-projection to be normal!
     Q.eval()
-    z_real_gauss = Variable(torch.randn(images.size()[0], z_red_dims) * 5.).cuda()
+    z_real_gauss = Variable(torch.randn(images.size()[0], z_red_dims) * 5.).to(device)
     D_real_gauss = D_gauss(z_real_gauss)
 
     z_fake_gauss = Q(images)
@@ -144,10 +155,16 @@ for step in range(total_step):
     G_loss.backward()
     optim_Q_gen.step()   
 
+    loss = G_loss + recon_loss
+
     
     if (step+1) % 100 == 0:
-        print ('Step [%d/%d], Loss: %.4f, Acc: %.2f' 
-               %(step+1, total_step, loss.data[0], accuracy.data[0]))
+        print ('Step [%d/%d], Loss: %.4f' 
+               %(step+1, total_step, loss.item()))
+        
+        fake = P(fixed_noise)
+        fake = fake.rehsape([fake.size(0), 1, 28, 28])
+        vutils.save_image(fake.detach(), '%s/fake_samples_epoch_%03d.png' % (outp, epoch + 1), normalize=True)
 
     #     #============ TensorBoard logging ============#
     #     # (1) Log the scalar values
